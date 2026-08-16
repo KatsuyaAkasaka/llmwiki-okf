@@ -1,63 +1,62 @@
 ---
 name: lint
 description: >
-  Health-check the llmwiki OKF bundle: run the deterministic `llmwiki lint` CLI (OKF
-  conformance, broken links, staleness) and layer on the semantic checks only an LLM can
-  do — contradictions between pages, duplicate topics, index drift, knowledge gaps. Use this
-  whenever the user asks to lint, check, validate, clean up, or audit the wiki — "wikiを
-  lintして", "is the wiki healthy?", "check the knowledge base for problems", "wikiの矛盾を
-  探して" — and after large ingests, before deploys, or periodically as wiki maintenance.
+  llmwiki の OKF bundle をヘルスチェックする: 決定的な `llmwiki lint` CLI(OKF 適合性・
+  リンク切れ・鮮度)を実行し、その上に LLM にしかできない意味的チェック — ページ間の矛盾、
+  トピックの重複、index の乖離、知識ギャップ — を重ねる。ユーザーが wiki の lint・チェック・
+  検証・整理・監査を求めたら必ず使うこと — 「wikiをlintして」「is the wiki healthy?」
+  「wikiの矛盾を探して」「ナレッジベースの問題を調べて」など。大きな ingest の後、
+  デプロイ前、定期メンテナンスとしても使う。
 ---
 
-# llmwiki lint — keep the wiki healthy
+# llmwiki lint — wiki を健全に保つ
 
-Wikis rot in two ways: **mechanically** (broken links, missing frontmatter, stale dates) and
-**semantically** (contradictions, duplicates, drift between index and reality). The CLI
-catches the first kind deterministically; you catch the second kind. Run both — reporting
-only CLI output when the user asked for a lint is half the job.
+wiki の腐り方は 2 種類ある: **機械的**(リンク切れ、フロントマター欠落、期限切れの日付)と
+**意味的**(矛盾、重複、index と実体のズレ)。前者は CLI が決定的に捕まえ、後者はあなたが
+捕まえる。両方やること — ユーザーが lint を頼んだのに CLI の出力を右から左に流すだけでは
+仕事の半分である。
 
-## Step 1 — Deterministic pass (CLI)
+## Step 1 — 決定的パス(CLI)
 
-Locate the bundle via `llmwiki.yaml` (search upward; `bundle_dir`, default `wiki/`). Run:
+`llmwiki.yaml` で bundle を特定する(上方向に探索; `bundle_dir`、デフォルト `wiki/`)。実行:
 
 ```bash
 llmwiki lint --format json
 ```
 
-Errors are OKF conformance violations (§11) — these make the bundle non-conformant and
-block CI, so they are never "minor". Warnings (broken links, stale pages, orphans,
-unindexed pages, missing title/description) are quality debt. If the CLI is missing, tell
-the user (`go install github.com/KatsuyaAkasaka/llmwiki-okf/cmd/llmwiki@latest`) and do
-the conformance checks manually against `../../docs/okf-cheatsheet.md` — slower but valid.
+エラーは OKF 適合性違反(§11) — bundle を非適合にし CI を止めるものなので、「軽微」では
+決してない。警告(リンク切れ、stale ページ、orphan、未インデックス、title/description 欠落)
+は品質負債。CLI がなければユーザーに伝え
+(`go install github.com/KatsuyaAkasaka/llmwiki-okf/cmd/llmwiki@latest`)、
+`../../docs/okf-cheatsheet.md` に照らして適合性チェックを手動で行う — 遅いが有効。
 
-## Step 2 — Semantic pass (you)
+## Step 2 — 意味的パス(あなた)
 
-Read `references/semantic-checks.md` for the procedure. In short, working from `index.md`
-and the pages themselves:
+手順は `references/semantic-checks.md` を読むこと。要点は、`index.md` とページ本体から:
 
-1. **Contradictions** — pages making incompatible claims about the same thing.
-2. **Duplicates** — two pages that are really one topic (the top failure mode of ingestion).
-3. **Index drift** — index descriptions that no longer match page content.
-4. **Knowledge gaps** — pages that are linked to but don't exist yet, thin pages,
-   heavily-cited sources with no source-summary page.
-5. **Staleness triage** — for each `stale_after` violation: still true, needs re-verification,
-   or should be `status: deprecated`?
+1. **矛盾** — 同じ対象について両立しない主張をするページ。
+2. **重複** — 実は 1 つのトピックである 2 ページ(取り込みの最大の失敗モード)。
+3. **index の乖離** — ページの現内容と一致しなくなった index の説明文。
+4. **知識ギャップ** — リンクされているのに存在しないページ、薄すぎるページ、
+   多くのページから引用されているのにソース要約ページがないソース。
+5. **鮮度の棚卸し** — `stale_after` 超過ページごとに: まだ正しいか、再検証が要るか、
+   `status: deprecated` にすべきか。
 
-Scale the depth to the wiki: read everything if it's small; for large bundles prioritize
-pages the CLI flagged plus the most-linked pages, and say what you didn't inspect —
-a lint report that silently skipped half the wiki is worse than one that says so.
+深さは wiki の規模に合わせる: 小さければ全部読む。大きな bundle では CLI が
+フラグしたページと被リンクの多いページを優先し、**何を見なかったかを言う** —
+半分を黙って飛ばした lint レポートは、飛ばしたと言うレポートより悪い。
 
-## Step 3 — Report, then fix
+## Step 3 — 報告し、それから修正する
 
-Present one integrated report, worst first:
+深刻な順に 1 つの統合レポートとして提示する:
 
-1. **Errors** (conformance) — file, rule, one-line fix each.
-2. **Contradictions & duplicates** — the claims, the pages, your recommended resolution.
-3. **Warnings & drift** — grouped, with counts.
-4. **Gaps & staleness** — as suggestions (ingest X, verify Y, deprecate Z).
+1. **エラー**(適合性)— ファイル、ルール、それぞれ一行の修正方法。
+2. **矛盾と重複** — 主張、ページ、あなたの推奨する解決。
+3. **警告と乖離** — グループ化して件数付きで。
+4. **ギャップと鮮度** — 提案として(X を取り込む、Y を検証する、Z を deprecate する)。
 
-Offer to fix what has an unambiguous fix: frontmatter errors, broken links, unindexed
-pages, index drift. Apply after the user agrees. Contradictions and duplicate merges need
-a human decision on which claim/page wins — propose, don't decide, unless told to.
-Re-run `llmwiki lint` after fixing to confirm clean, and record the session in `log.md`
-(`* **Update**: lint fixes — ...`).
+修正が一意に決まるものは修正を申し出る: フロントマターのエラー、リンク切れ、
+未インデックスページ、index の乖離。ユーザーの同意後に適用する。矛盾の解決と重複の
+マージはどちらの主張/ページが勝つかの人間の判断が要る — 指示がない限り、提案に留めて
+決定しない。修正後は `llmwiki lint` を再実行してクリーンを確認し、セッションを `log.md`
+に記録する(`* **Update**: lint fixes — ...`)。

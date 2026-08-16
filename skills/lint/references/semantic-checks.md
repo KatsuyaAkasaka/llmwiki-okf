@@ -1,51 +1,53 @@
-# Semantic check procedure
+# 意味的チェックの手順
 
-These checks need judgment, which is why they live here and not in the CLI. Work from
-evidence — quote the conflicting sentences, name the files — so the user can decide fast.
+これらのチェックには判断が必要である。だからこそ CLI ではなくここにある。証拠ベースで
+進めること — 矛盾する文を引用し、ファイル名を挙げる — ユーザーが素早く判断できるように。
 
-## 1. Contradictions
+## 1. 矛盾
 
-Group pages by topic (index sections and shared tags are your grouping hints). Within a
-group, compare concrete claims: numbers, dates, "X is/does Y" statements, recommendations.
-A real contradiction is two pages a reader could act on differently — not a difference in
-emphasis or scope.
+ページをトピックでグループ化する(index のセクションと共有タグがヒント)。グループ内で
+具体的な主張を比較する: 数値、日付、「X は Y である/する」という文、推奨事項。本物の
+矛盾とは、読んだ人の行動が変わりうる 2 つの主張であって、強調点やスコープの違いではない。
 
-For each: quote both claims, check both pages' `sources` and `generated.at` (newer +
-better-sourced usually wins), then recommend: update the losing page, or keep both claims
-side-by-side in one page with their sources when the sources genuinely disagree.
+各矛盾について: 両方の主張を引用し、両ページの `sources` と `generated.at` を確認し
+(新しく、出典の良い方がだいたい勝つ)、推奨を出す: 負けた側のページを更新するか、
+ソース同士が本当に食い違っているなら 1 つのページに両主張を出典付きで併記するか。
 
-## 2. Duplicates
+## 2. 重複
 
-Scan `index.md` for entries whose titles/descriptions overlap, and pages sharing most of
-their tags. Read suspects. Two pages are duplicates when a reader needing one would always
-need the other. Recommend a merge direction: keep the better slug, fold content in, merge
-`sources` (dedupe by resource, keep all `verified` entries — they're attestations), and turn
-the losing file into a link from every page that pointed at it (update, don't just delete;
-the CLI's broken-link check will confirm you got them all).
+`index.md` でタイトル/説明が重なるエントリと、タグの大半を共有するページを探す。疑わしい
+ものを読む。一方を必要とする読者が常に他方も必要とするなら、それは重複である。マージの
+方向を推奨する: 良い方のスラグを残し、内容を畳み込み、`sources` をマージし(resource で
+重複排除、`verified` エントリは全て保持 — それらは attestation である)、負けた側のファイルを
+指していた全ページからのリンクを張り替える(削除だけで済ませない。CLI の broken-link
+チェックが張り替え漏れを確認してくれる)。
 
-## 3. Index drift
+## 3. index の乖離
 
-For each `index.md` entry, does the one-line description still match the page's current
-`description`/content? Ingest updates pages more often than it rewrites index lines, so
-drift accumulates silently. Fix lines that would mislead someone choosing what to read.
+各 `index.md` エントリについて、一行説明はページの現在の `description`/内容とまだ一致して
+いるか? ingest は index の行を書き直すよりページを更新する頻度の方が高いので、乖離は
+静かに蓄積する。何を読むか選ぶ人を誤導しうる行を直す。
 
-## 4. Knowledge gaps
+## 4. 知識ギャップ
 
-- Links pointing at pages that don't exist yet (the CLI lists these as broken-link warnings —
-  the semantic question is *which are worth creating*).
-- Pages cited as `sources` by 3+ pages that have no `sources/` summary page of their own.
-- Thin pages: a title and one line where the topic clearly deserves more — flag, don't pad.
+- まだ存在しないページを指すリンク(CLI が broken-link 警告として列挙する — 意味的な
+  問いは*どれが作る価値があるか*)。
+- 3 ページ以上から `sources` として引用されているのに、自身の `sources/` 要約ページが
+  ないソース。
+- 薄いページ: トピックは明らかにそれ以上の内容に値するのに、タイトルと一行だけ —
+  フラグを立てる。水増しはしない。
 
-Output gaps as a prioritized "worth ingesting/writing next" list — this is the wiki asking
-for its next meal, and the most valuable part of the report for an active user.
+ギャップは「次に取り込む/書く価値があるもの」の優先順位付きリストとして出力する —
+これは wiki が次の食事をねだっている声であり、アクティブなユーザーにとってレポートで
+最も価値のある部分である。
 
-## 5. Staleness triage
+## 5. 鮮度の棚卸し
 
-For each page past `stale_after` (CLI lists them), read it and sort into:
+`stale_after` を過ぎた各ページ(CLI が列挙する)を読み、次のいずれかに分類する:
 
-- **Still true** → recommend re-verification (`verified` entry) and a new `stale_after`.
-- **Probably outdated** → recommend re-ingesting a current source on the topic.
-- **Superseded** → recommend `status: deprecated` plus a link to the replacement page.
+- **まだ正しい** → 再検証(`verified` エントリ)と新しい `stale_after` を推奨。
+- **おそらく古い** → そのトピックの最新ソースの再取り込みを推奨。
+- **置き換え済み** → `status: deprecated` と後継ページへのリンクを推奨。
 
-Don't change dates yourself just to silence the warning — a fresh `stale_after` is a claim
-that someone checked, and only the check itself justifies it.
+警告を黙らせるためだけに自分で日付を変えないこと — 新しい `stale_after` は「誰かが
+確認した」という主張であり、それを正当化できるのは確認そのものだけである。

@@ -1,9 +1,9 @@
-# Page templates
+# ページ雛形
 
-Slugs: lowercase kebab-case, descriptive (`transformer-architecture.md`, not `page1.md`).
-Timestamps: ISO-8601 UTC. Dates: `YYYY-MM-DD`. Replace `<actor>` with the configured actor.
+スラグ: 小文字ケバブケースで内容がわかるもの(`transformer-architecture.md`、`page1.md` は不可)。
+タイムスタンプ: ISO-8601 UTC。日付: `YYYY-MM-DD`。`<actor>` は設定された actor に置換する。
 
-## Concept page — `concepts/<slug>.md`
+## コンセプトページ — `concepts/<slug>.md`
 
 ```markdown
 ---
@@ -19,31 +19,32 @@ sources:
 generated: { by: <actor>, at: 2026-08-16T12:00:00Z }
 ---
 
-One-paragraph definition a reader (or model) can use without opening anything else.
+読み手(人間もモデルも)が他のページを開かずに使える、1 段落の定義。
 
 ## Key points
 
-- Claim with attribution.[^attention-paper]
-- Relationship to [self-attention](/concepts/self-attention.md) — say *how* they relate.
+- 出典付きの主張。[^attention-paper]
+- [self-attention](/concepts/self-attention.md) との関係 — *どう*関係するかを書く。
 
 ## Open questions
 
-- Anything the sources left unresolved.
+- ソースが解決しなかった論点。
 
 [^attention-paper]: Vaswani et al., Attention Is All You Need.
 ```
 
-## Entity page — `entities/<slug>.md`
+## エンティティページ — `entities/<slug>.md`
 
-Same shape, `type: Entity`. First line: who/what it is. Sections that earn their place:
-`## Role`, `## Related` (linked pages with the relationship stated in prose).
+同じ構造で `type: Entity`。冒頭 1 行: それが誰/何か。置く価値のあるセクション:
+`## Role`、`## Related`(リンク先ページとの関係を本文で述べる)。
 
-## Guide page — `guides/<slug>.md`
+## ガイドページ — `guides/<slug>.md`
 
-`type: Guide`. Numbered steps, prerequisites first, one fenced code block per command.
-Guides go stale fastest — set `stale_after` (6–12 months out) so lint resurfaces them.
+`type: Guide`。番号付き手順、前提条件を最初に、コマンドは 1 つずつコードフェンスで。
+ガイドは最も早く陳腐化するので `stale_after`(6〜12 ヶ月先)を必ず設定し、lint が
+再浮上させられるようにする。
 
-## Source summary — `sources/<slug>.md`
+## ソース要約 — `sources/<slug>.md`
 
 ```markdown
 ---
@@ -58,11 +59,11 @@ sources:
 generated: { by: <actor>, at: 2026-08-16T12:00:00Z }
 ---
 
-What this source is and why it was ingested.
+このソースが何で、なぜ取り込んだか。
 
 ## Key claims
 
-- The distilled claims, briefly.
+- 蒸留した主張を簡潔に。
 
 ## Pages touched
 
@@ -70,13 +71,13 @@ What this source is and why it was ingested.
 - [Andrej Karpathy](/entities/andrej-karpathy.md) — updated
 ```
 
-## Synthesis page — `synthesis/<slug>.md`
+## 統合ページ — `synthesis/<slug>.md`
 
-`type: Synthesis`. Only when insight spans **multiple sources** — a synthesis with one
-source is a concept page in disguise. Cite the source-summary pages, not just raw URLs,
-in `sources` (bundle-relative resource paths like `/sources/karpathy-llm-wiki.md`).
+`type: Synthesis`。洞察が**複数ソース**にまたがるときだけ — ソースが 1 つの synthesis は
+コンセプトページの変装にすぎない。`sources` には生 URL ではなくソース要約ページを
+bundle 相対パスで引用する(例 `/sources/karpathy-llm-wiki.md`)。
 
-## index.md entry
+## index.md エントリ
 
 ```markdown
 ## Concepts
@@ -84,7 +85,7 @@ in `sources` (bundle-relative resource paths like `/sources/karpathy-llm-wiki.md
 * [Transformer Architecture](/concepts/transformer-architecture.md) - Attention-based sequence architecture.
 ```
 
-## log.md entry (newest date heading at the top of the file)
+## log.md エントリ(最新の日付見出しをファイル先頭に)
 
 ```markdown
 ## 2026-08-16

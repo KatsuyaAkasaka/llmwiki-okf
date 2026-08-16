@@ -1,95 +1,96 @@
 ---
 name: ingest
 description: >
-  Ingest a source (URL, local file, pasted text, or the current conversation) into the
-  OKF-format llmwiki knowledge bundle: distill it into wiki pages, cross-link them, record
-  provenance, and update index.md/log.md. Use this whenever the user wants to add, capture,
-  save, or "remember" knowledge in their wiki — phrases like "ingest this article", "add this
-  to the wiki", "この記事をwikiに取り込んで", "この会話の知見を保存して" — even if they
-  don't say "ingest". If a llmwiki.yaml exists in the project, any request to store knowledge
-  should go through this skill rather than ad-hoc file writes.
+  ソース(URL、ローカルファイル、貼り付けテキスト、現在の会話)を OKF フォーマットの
+  llmwiki ナレッジ bundle に取り込む: wiki ページに蒸留し、相互リンクを張り、来歴を記録し、
+  index.md / log.md を更新する。ユーザーが wiki への知識の追加・保存・記憶を求めたら必ず
+  使うこと — 「この記事をwikiに取り込んで」「ingest this article」「add this to the wiki」
+  「この会話の知見を保存して」など、"ingest" と言われなくても該当する。プロジェクトに
+  llmwiki.yaml があるなら、知識を保存する要求はアドホックなファイル書き込みではなく
+  このスキルを通すこと。
 ---
 
-# llmwiki ingest — distill a source into the wiki
+# llmwiki ingest — ソースを wiki に蒸留する
 
-You are maintaining a **compounding knowledge artifact**, not writing notes. A source is
-read once, distilled into interconnected pages, and never needs re-reading. Sloppy ingestion
-(missing provenance, no cross-links, stale index) silently degrades every future query, so
-follow the whole workflow — the bookkeeping is the product.
+あなたが維持しているのはメモ書きではなく、**複利するナレッジ成果物**である。ソースは
+一度だけ読まれ、相互接続されたページ群に蒸留され、二度と読み直す必要がなくなる。
+杜撰な取り込み(来歴の欠落、リンクなし、古い index)は、以後のすべての query を静かに
+劣化させる。だからワークフロー全体を守ること — 簿記こそがプロダクトである。
 
-## Step 0 — Locate the bundle
+## Step 0 — bundle を特定する
 
-Search upward from the working directory for `llmwiki.yaml`. It gives you:
+作業ディレクトリから上方向に `llmwiki.yaml` を探す。得られるもの:
 
-- `bundle_dir` — the OKF bundle root (default `wiki/`)
-- `actor` — the value for `generated.by` (fall back to `llmwiki/<your-model-id>`)
-- `categories` — the category directories and their meanings
+- `bundle_dir` — OKF bundle のルート(デフォルト `wiki/`)
+- `actor` — `generated.by` に入れる値(なければ `llmwiki/<your-model-id>` にフォールバック)
+- `categories` — カテゴリディレクトリとその意味
 
-If there is no `llmwiki.yaml`, stop and tell the user to run `llmwiki init` first.
+`llmwiki.yaml` がなければ停止し、先に `llmwiki init` を実行するようユーザーに伝える。
 
-Read the bundle's `index.md` before writing anything — you need to know what already
-exists to update rather than duplicate. If a page on the topic already exists, **update it**;
-creating a near-duplicate page is the main failure mode of wiki rot.
+書き込む前に必ず bundle の `index.md` を読むこと — 重複ではなく更新をするためには、
+何が既に存在するかを知る必要がある。そのトピックのページが既にあるなら**更新する**。
+ほぼ重複のページを作ることが wiki 腐敗の最大の失敗モードである。
 
-For frontmatter and linking rules, read `../../docs/okf-cheatsheet.md` (relative to this
-skill's base directory). For page templates, read `references/okf-authoring.md`.
+フロントマターとリンクの規則は `../../docs/okf-cheatsheet.md`(このスキルのベース
+ディレクトリからの相対パス)を、ページ雛形は `references/okf-authoring.md` を読むこと。
 
-## Step 1 — Read the source
+## Step 1 — ソースを読む
 
-- **URL** → WebFetch. Record the URL, author and date if visible.
-- **Local file** → Read (images too — describe what they show; mark interpretations as inferred).
-- **Pasted text / current conversation** → use it directly. The source `resource` becomes a
-  scope descriptor like `conversation 2026-08-16 with human:akasaka`.
+- **URL** → WebFetch。URL、著者、日付が見えれば記録する。
+- **ローカルファイル** → Read(画像も対象 — 何が写っているかを記述し、解釈は inferred と
+  マークする)。
+- **貼り付けテキスト / 現在の会話** → そのまま使う。ソースの `resource` は
+  `conversation 2026-08-16 with human:akasaka` のようなスコープ記述子になる。
 
-## Step 2 — Create the source summary page
+## Step 2 — ソース要約ページを作る
 
-Every ingested source gets exactly one page in `sources/<slug>.md` with
-`type: Source Summary`: what the source is, its key claims, and links to the pages it
-touched. This is the wiki's memory of *where knowledge came from* — queries cite it, and
-re-ingesting the same source becomes an update instead of a duplicate. Check `sources/`
-for an existing page for this source first.
+取り込んだソースは必ず `sources/<slug>.md` にちょうど 1 ページを持つ
+(`type: Source Summary`): そのソースが何か、主要な主張、影響したページへのリンク。
+これは「知識がどこから来たか」についての wiki の記憶であり、query はこれを引用し、
+同じソースの再取り込みは重複ではなく更新になる。まず `sources/` に既存ページがないか
+確認すること。
 
-## Step 3 — Distill into concept pages
+## Step 3 — コンセプトページに蒸留する
 
-Identify every concept, entity, guide-worthy procedure, and cross-cutting insight the source
-contains. For each one, decide: update an existing page, or create a new one in the right
-category. One source legitimately touches many pages — 5–15 edits is normal, not excessive.
+ソースに含まれるすべての概念、エンティティ、手順化する価値のあるノウハウ、横断的な
+洞察を洗い出す。それぞれについて判断する: 既存ページを更新するか、適切なカテゴリに
+新規作成するか。1 つのソースが多くのページに波及するのは正当である — 5〜15 ページの
+編集は過剰ではなく普通。
 
-On every page you touch:
+触るすべてのページで:
 
-- Frontmatter per the cheatsheet: `type` (required), `title`, `description`, `tags`,
-  `sources` (append this source with an `id`), `generated` (this actor, now, ISO-8601).
-- Attribute specific claims with footnotes: `claim.[^source-id]`
-- Cross-link related pages with bundle-relative links (`/concepts/foo.md`) — in **both
-  directions**. A page nobody links to is invisible to queries (and `lint` flags it as an orphan).
-- If the source **contradicts** an existing page, do not silently overwrite: state both claims
-  in the page with their sources, and flag the conflict in your final report to the user.
-- Never delete or rewrite `verified` entries — verification belongs to whoever verified.
-  If your edit invalidates what was verified, remove nothing; add the new content, keep the
-  old `verified` list, and mention in the report that re-verification is needed.
+- チートシートに従ったフロントマター: `type`(必須)、`title`、`description`、`tags`、
+  `sources`(このソースを `id` 付きで追記)、`generated`(この actor、現在時刻、ISO-8601)。
+- 具体的な主張には脚注で出典を付ける: `claim.[^source-id]`
+- 関連ページとは bundle 相対リンク(`/concepts/foo.md`)で**双方向に**リンクする。
+  誰からもリンクされないページは query から見えない(`lint` が orphan として検出する)。
+- ソースが既存ページと**矛盾**する場合、黙って上書きしない: 両方の主張をそれぞれの
+  出典付きでページに記載し、最終レポートでユーザーに矛盾を報告する。
+- `verified` エントリを削除・書き換えしない — 検証は検証した者に帰属する。あなたの編集が
+  検証済み内容を無効にするなら、何も消さず、新しい内容を追加し、古い `verified` リストは
+  保持し、再検証が必要である旨をレポートで伝える。
 
-## Step 4 — Update the catalog and the log
+## Step 4 — カタログとログを更新する
 
-- `index.md` (bundle root, and any per-directory index a touched page lives under):
-  every new page gets a `* [Title](/path.md) - one-line description` entry in the right section.
-- `log.md`: add entries under today's `## YYYY-MM-DD` heading (create it at the **top** —
-  newest first): `* **Creation**: ...` / `* **Update**: ...` with links.
+- `index.md`(bundle ルート、および触ったページが属するディレクトリ別 index):
+  新規ページはすべて適切なセクションに `* [Title](/path.md) - 一行説明` を追加する。
+- `log.md`: 今日の `## YYYY-MM-DD` 見出しの下にエントリを追加(見出しはファイルの
+  **先頭**に作る — 新しい順): `* **Creation**: ...` / `* **Update**: ...` をリンク付きで。
 
-## Step 5 — Self-verify
+## Step 5 — 自己検証
 
-Run `llmwiki lint --format json` and fix any errors you introduced (warnings: fix broken
-links and unindexed pages; report the rest). If the CLI is not installed, say so and
-re-check your own edits against the cheatsheet's conformance rules instead.
+`llmwiki lint --format json` を実行し、自分が持ち込んだエラーを修正する(警告のうち
+リンク切れと未インデックスは修正し、残りは報告する)。CLI が未インストールならその旨を
+伝え、代わりにチートシートの適合性ルールに照らして自分の編集を確認する。
 
-## Step 6 — Archive only on request
+## Step 6 — アーカイブは指示があったときだけ
 
-Do **not** copy source content into the bundle by default — provenance lives in
-`sources[].resource`. Only when the user explicitly asks to archive (ephemeral page,
-conversation, paste), save the original into `references/` under the bundle root.
-If the original is a `.md` file, save it as `<name>.md.txt` so it isn't parsed as a
-concept document.
+デフォルトではソースの内容を bundle にコピーしない — 来歴は `sources[].resource` にある。
+ユーザーが明示的にアーカイブを求めたとき(消えうるページ、会話、貼り付け)だけ、
+原本を bundle ルート直下の `references/` に保存する。原本が `.md` ファイルの場合は
+コンセプト文書としてパースされないよう `<name>.md.txt` として保存する。
 
-## Report
+## レポート
 
-End with a short report: pages created / updated (as links), conflicts found,
-lint result, and anything needing human verification.
+最後に短いレポートで締める: 作成/更新したページ(リンクで)、見つかった矛盾、
+lint の結果、人間の検証が必要な事項。

@@ -1,61 +1,61 @@
 ---
 name: query
 description: >
-  Answer questions from the llmwiki OKF knowledge bundle — local checkout if present,
-  otherwise the hosted wiki over HTTP — with provenance, trust tier, and freshness attached
-  to every answer. Use this whenever the user asks what the wiki/knowledge base knows,
-  or asks a factual/project question in a repo that has a llmwiki.yaml — phrases like
-  "what do we know about X", "wikiに聞いて", "check the knowledge base", "Xについてwikiで調べて" — even when they don't say "query". Prefer this over ad-hoc grepping: wiki pages
-  carry provenance that raw grep results lack.
+  llmwiki の OKF ナレッジ bundle から質問に答える — ローカルの checkout があればそれを、
+  なければホスティング済み wiki を HTTP 経由で参照し、すべての回答に来歴・信頼層・鮮度を
+  添える。ユーザーが wiki やナレッジベースの内容を尋ねたとき、あるいは llmwiki.yaml の
+  あるリポジトリで事実確認・プロジェクトについての質問をしたときは必ず使うこと —
+  「Xについて何を知ってる?」「wikiに聞いて」「what do we know about X」「Xについてwikiで
+  調べて」など、"query" と言われなくても該当する。アドホックな grep よりこのスキルを
+  優先する: wiki ページには生の grep 結果にはない来歴が付いている。
 ---
 
-# llmwiki query — answer from the wiki, with receipts
+# llmwiki query — 出典付きで wiki から答える
 
-The wiki is compiled knowledge: distilled once, kept current. Your job is to answer from it
-**and say how much the answer can be trusted** — an answer without provenance is just
-chat. If the wiki cannot answer, say so plainly; do not silently substitute your own
-general knowledge for wiki content (offering it *labeled as your own* is fine).
+wiki はコンパイル済みの知識である: 一度蒸留され、最新に保たれている。あなたの仕事は
+そこから答えること、そして**その答えがどこまで信頼できるかを言うこと** — 来歴のない
+回答はただのチャットである。wiki が答えられないならはっきりそう言う。wiki の内容の
+代わりに自分の一般知識を黙って差し込まない(*自分の知識と明示して*補足するのは可)。
 
-## Step 1 — Find the wiki
+## Step 1 — wiki を見つける
 
-Try in order; use the first that works:
+以下の順で試し、最初に成功したものを使う:
 
-1. **Local bundle**: search upward from the working directory for `llmwiki.yaml` →
-   `bundle_dir` (default `wiki/`). Local wins — it is fresher than any deployment.
-2. **Remote**: `remote_url` from `llmwiki.yaml`, else the `LLMWIKI_REMOTE_URL` environment
-   variable, else a URL the user gave you. Fetch `<remote_url>/index.md`.
-3. Neither → tell the user you need a bundle path or a wiki URL; don't guess.
+1. **ローカル bundle**: 作業ディレクトリから上方向に `llmwiki.yaml` を探す →
+   `bundle_dir`(デフォルト `wiki/`)。ローカルが最優先 — どのデプロイよりも新しい。
+2. **リモート**: `llmwiki.yaml` の `remote_url`、なければ環境変数 `LLMWIKI_REMOTE_URL`、
+   なければユーザーが与えた URL。`<remote_url>/index.md` を fetch する。
+3. どちらもなければ → bundle のパスか wiki の URL が必要だと伝える。推測しない。
 
-## Step 2 — Navigate, don't scan
+## Step 2 — スキャンではなくナビゲートする
 
-Start from `index.md` — it is the map: every page with a one-line description. Pick the
-2–5 most relevant pages and read them (Read locally / fetch `<remote_url>/<path>.md`
-remotely). Follow bundle-relative links (`/concepts/foo.md`) one or two hops when a page
-points somewhere more specific. Locally, Grep is a good fallback when the index doesn't
-surface an obvious page — remotely you only have the index and links, which is why
-ingest keeps them complete.
+`index.md` から始める — それが地図であり、全ページの一行説明が載っている。最も関連する
+2〜5 ページを選んで読む(ローカルは Read / リモートは `<remote_url>/<path>.md` を fetch)。
+ページがより具体的な場所を指していれば bundle 相対リンク(`/concepts/foo.md`)を 1〜2 ホップ
+辿る。ローカルでは index から目当てのページが見つからないときの Grep が有効なフォールバック
+— リモートでは index とリンクしか頼れない。だからこそ ingest はそれらを完全に保っている。
 
-## Step 3 — Answer with receipts
+## Step 3 — 出典付きで答える
 
-Structure the answer:
+回答の構成:
 
-- **The answer**, synthesized across the pages you read.
-- **Sources**: which wiki pages (as links — local paths or `<remote_url>/...`), and the
-  original sources their frontmatter cites where relevant.
-- **Trust & freshness**, derived from frontmatter (compact, e.g. one line per cited page):
-  - no `verified` → *unverified* · `verified` by machine actors only → *machine-confirmed* ·
-    any `human:` entry → *human-reviewed*
-  - `status: draft`/`deprecated` — say so; prefer stable pages when they conflict.
-  - `stale_after` in the past — warn that the page may be outdated.
-- **Conflicts**: if pages disagree, present both positions with their sources. Never pick
-  a side silently.
-- **Gaps**: if the wiki only partially covers the question, name what's missing and suggest
-  ingesting a source for it (`/llmwiki:ingest`).
+- **答え** — 読んだページを横断して統合したもの。
+- **出典**: どの wiki ページか(リンクで — ローカルパスまたは `<remote_url>/...`)、
+  および関連する場合はそのフロントマターが引く元ソース。
+- **信頼と鮮度** — フロントマターから導出する(簡潔に、例: 引用ページごとに 1 行):
+  - `verified` なし → *unverified* · 機械 actor のみの `verified` → *machine-confirmed* ·
+    `human:` エントリあり → *human-reviewed*
+  - `status: draft` / `deprecated` — その旨を言う。矛盾したら stable なページを優先する。
+  - `stale_after` が過去 — ページが古い可能性を警告する。
+- **矛盾**: ページ同士が食い違うなら、両方の立場を出典付きで提示する。黙って一方を
+  選ばない。
+- **ギャップ**: wiki が質問を部分的にしかカバーしていないなら、欠けているものを挙げ、
+  そのソースの取り込み(`/llmwiki:ingest`)を提案する。
 
-## Step 4 — File good answers back (local only)
+## Step 4 — 良い回答は wiki に還元する(ローカルのみ)
 
-If the answer required synthesizing across 3+ pages and the synthesis feels durable
-(would be asked again), offer to save it as a `synthesis/` page so next time it's one read
-instead of N. Only with the user's yes: follow the ingest skill's authoring rules —
-frontmatter, `sources` pointing at the pages you synthesized (bundle-relative), index.md
-and log.md updates. Never write to a remote wiki; suggest doing it from the wiki's repo.
+回答が 3 ページ以上の統合を必要とし、その統合が長持ちしそう(また聞かれそう)なら、
+`synthesis/` ページとしての保存を提案する — 次回は N 回の読みが 1 回になる。ユーザーの
+同意があった場合のみ: ingest スキルの執筆規則に従う — フロントマター、統合したページを
+指す `sources`(bundle 相対)、index.md と log.md の更新。リモート wiki には決して
+書き込まない。wiki のリポジトリから行うよう提案する。
