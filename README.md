@@ -10,9 +10,10 @@ An LLM-maintained knowledge wiki, in the open.
   and freshness (`status`/`stale_after`). Vendor-neutral, readable by humans and LLMs alike.
 - **Interface**: [Claude Code](https://claude.com/claude-code) skills — `ingest`, `query`, `lint` —
   plus a deterministic Go CLI for scaffolding and conformance checking.
-- **Hosting**: the bundle is plain static files. Upload it to any static host
-  (a GCS bucket, for example) and it's live — raw markdown for LLM consumers, plus a
-  self-contained single-file viewer (`index.html`) for humans. No build step.
+- **Viewing**: raw markdown is the primary artifact — LLMs and agents read pages
+  directly. Humans get a self-contained single-file viewer (`index.html`) that renders
+  the same markdown client-side. No build step, no SSG: the bundle is served as-is by
+  any static file server.
 
 ## Quickstart
 
@@ -73,22 +74,42 @@ pages past `stale_after`, orphans, pages missing from every `index.md`, missing
 title/description. Contradiction/duplicate/gap detection needs judgment and lives in the
 lint *skill*, layered on top of the CLI's JSON output.
 
-## Hosting
+## The viewer
 
-The bundle is static files with relative paths — any static host works. GCS example:
+`wiki/index.html` is scaffolded by `llmwiki init` and needs no generation step afterwards:
+it is one self-contained file (inline CSS/JS, no CDN dependencies) that renders the bundle's
+markdown client-side. There is nothing to rebuild when pages change — publishing a page *is*
+writing its `.md` file.
+
+How it works:
+
+- **Hash routing** — `index.html#/concepts/foo.md` fetches `concepts/foo.md` with a
+  relative request and renders it in place; the sidebar is built from `index.md`.
+  Deep links to any page are shareable URLs.
+- **Frontmatter panel** — each page shows its OKF metadata as badges: `type`, `status`,
+  derived trust tier (*unverified / machine-confirmed / human-reviewed*), tags, and a
+  red *stale* badge once `stale_after` has passed. The raw frontmatter sits behind a
+  collapsible disclosure.
+- **Link rewriting** — internal `.md` links become viewer links (`#/...`); external links
+  open normally. Markdown rendering covers headings, lists, tables, fenced code,
+  blockquotes, and OKF's source footnotes. Dark/light follows the system theme.
+
+To view it, serve the bundle directory over HTTP — the viewer fetches pages, so opening
+the file via `file://` won't work:
 
 ```bash
-gcloud storage buckets create gs://my-wiki --uniform-bucket-level-access
-gcloud storage buckets add-iam-policy-binding gs://my-wiki \
-  --member=allUsers --role=roles/storage.objectViewer
-gcloud storage rsync --recursive wiki gs://my-wiki
+cd wiki && python3 -m http.server 8000
+# → http://localhost:8000/index.html
 ```
 
-- Humans: `https://storage.googleapis.com/my-wiki/index.html`
-- LLMs/agents: `https://storage.googleapis.com/my-wiki/index.md` (and every page as raw markdown)
+The same pair of views holds wherever the bundle is served from, since the viewer uses
+relative fetch paths only:
 
-Wire the rsync into whatever CI you like — deployment is deliberately out of scope here;
-a lint-gated GitHub Actions job is a few lines on top of `llmwiki lint --strict`.
+- Humans: `<base-url>/index.html` (or `<base-url>/index.html#/path/page.md`)
+- LLMs/agents: `<base-url>/index.md`, and every page as raw markdown
+
+Deployment itself is deliberately out of scope — sync the `wiki/` directory to your
+static host however you like, ideally gated on `llmwiki lint --strict`.
 
 ## License
 
