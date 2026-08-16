@@ -1,0 +1,13 @@
+{
+  "name": "llmwiki-okf",
+  "owner": {
+    "name": "Katsuya Akasaka"
+  },
+  "plugins": [
+    {
+      "name": "llmwiki",
+      "source": "./",
+      "description": "LLM-maintained knowledge wiki in Open Knowledge Format (OKF): ingest, query, and lint skills plus a deterministic CLI."
+    }
+  ]
+}

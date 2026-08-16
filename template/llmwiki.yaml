@@ -1,0 +1,23 @@
+# llmwiki configuration — read by the llmwiki CLI and the Claude Code skills.
+
+# Path of the OKF bundle root, relative to this file. The bundle is the unit you
+# upload to static hosting (GCS bucket, etc.) — everything under it is public.
+bundle_dir: wiki
+
+# Public base URL of the deployed bundle, no trailing slash.
+# Example: https://storage.googleapis.com/my-wiki
+# Used by the query skill as a fallback when no local bundle is available.
+remote_url: ""
+
+# Default actor recorded in `generated.by` on pages the skills write.
+# Convention: agents "producer/version", people "human:<id>", automation "process:<id>".
+actor: ""
+
+# Category directories and what belongs in each. The skills use these to decide
+# where a page goes. Add/remove freely — OKF does not constrain directory layout.
+categories:
+  concepts: Ideas, theories, mental models
+  entities: People, organizations, tools, projects
+  guides: How-to knowledge and procedures
+  sources: One page per ingested source (what it said, what pages it touched)
+  synthesis: Cross-cutting analysis spanning multiple sources

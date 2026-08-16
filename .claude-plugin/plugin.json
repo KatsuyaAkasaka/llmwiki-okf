@@ -1,0 +1,11 @@
+{
+  "name": "llmwiki",
+  "description": "LLM-maintained knowledge wiki in Open Knowledge Format (OKF). Skills: ingest sources into the wiki, query it (local or hosted), and lint it for conformance and semantic health.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Katsuya Akasaka"
+  },
+  "homepage": "https://github.com/KatsuyaAkasaka/llmwiki-okf",
+  "license": "Apache-2.0",
+  "keywords": ["wiki", "knowledge-base", "okf", "llm-wiki"]
+}
