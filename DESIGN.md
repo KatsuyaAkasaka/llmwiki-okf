@@ -28,6 +28,7 @@ Karpathy の [LLM Wiki パターン](https://gist.github.com/karpathy/442a6bf555
 | 10 | 生ソース保存 | デフォルト保存なし。指示時のみ `wiki/references/` にアーカイブ | バンドル肥大と公開バケットでの著作権リスクを回避 |
 | 11 | 命名 | リポジトリ `llmwiki-okf`、CLI バイナリ / プラグイン名 `llmwiki` | スキル呼び出しは `/llmwiki:ingest` 等 |
 | 12 | ライセンス | Apache-2.0 | OKF 本家と同一。仕様引用・企業利用に強い |
+| 13 | inbox 取り込み | `inbox_dir`(bundle 外)に置いたファイルを ingest の追加経路として一括取り込み。`.llmwiki-manifest.json` の content hash で差分検出 | [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) の manifest 方式を参考。2 回目以降は差分のみ処理、ファイルは移動・削除しない |
 
 ## 3. リポジトリ構成
 
@@ -61,6 +62,8 @@ llmwiki-okf/
 ```
 my-wiki/
 ├── llmwiki.yaml                 # 設定(下記)
+├── .llmwiki-manifest.json       # inbox 取り込みの追跡(content hash / 触れたページ)
+├── inbox/                       # 取り込み待ちファイルの置き場(生ソース層、デプロイされない)
 └── wiki/                        # OKF bundle = 静的ホスティングに置く単位
 ```
 
@@ -68,6 +71,7 @@ my-wiki/
 
 ```yaml
 bundle_dir: wiki                 # bundle ルートの相対パス
+inbox_dir: inbox                 # 取り込み待ちディレクトリ(bundle の外)
 remote_url: ""                   # 公開 URL(例 https://storage.googleapis.com/my-wiki)
 actor: ""                        # generated.by の既定値(例 llmwiki/claude-fable-5)
 categories:
@@ -116,6 +120,13 @@ stale_after: 2027-01-01                       # 鮮度期限
 ### `llmwiki init [dir]`
 埋め込みテンプレートを展開。既存ファイルは上書きしない。
 
+### `llmwiki inbox [--format json]` / `llmwiki inbox mark <file> [--pages a.md,b.md]`
+inbox の各ファイルを manifest の content hash と比較して分類する:
+`new`(未取り込み)/ `changed`(取り込み後に変更)/ `ingested`(処理済み)/
+`missing`(manifest にあるがファイル消失)。`mark` は取り込み完了の宣言で、
+現在のハッシュ・時刻・触れたページを `.llmwiki-manifest.json` に記録する。
+発見と記録だけを CLI が決定的に担い、蒸留は ingest スキルの仕事(役割分担は lint と同型)。
+
 ### `llmwiki lint [--format json] [--strict] [dir]`
 bundle ルート(llmwiki.yaml の bundle_dir、または指定ディレクトリ)に対し決定的チェックを実行。
 
@@ -155,7 +166,10 @@ JSON 出力(スキル・CI 用):
 3 スキルとも冒頭で `llmwiki.yaml` を探索(cwd から上方向)して bundle 位置と設定を得る。
 
 ### `/llmwiki:ingest <source>`
-1. ソース読解(URL は WebFetch、ファイルは Read、貼り付け・会話はそのまま)
+1. ソース読解(URL は WebFetch、ファイルは Read、貼り付け・会話はそのまま)。
+   **inbox モード**(ソース未指定 or「inboxを取り込んで」): `llmwiki inbox --format json`
+   で差分を得て、`new`/`changed` の各ファイルに以下を適用 → 処理ごとに
+   `llmwiki inbox mark` で記録。ファイルは移動・削除しない
 2. `sources/<slug>.md`(type: Source Summary)を作成
 3. 影響するページを洗い出し、既存ページ更新 or 新規作成(1 ソースで複数ページに波及してよい)
 4. 全ページの frontmatter に sources / generated を記録、相互リンクを張る

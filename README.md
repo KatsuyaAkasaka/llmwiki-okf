@@ -35,8 +35,23 @@ llmwiki init my-wiki && cd my-wiki
 | 話しかける内容 | 何が起きるか |
 |---|---|
 | 「https://example.com/paper をwikiに取り込んで」 | `ingest` がソースを相互リンク付きページに蒸留し、来歴を記録して `index.md` + `log.md` を更新、`llmwiki lint` で自己検証する |
+| 「inboxを取り込んで」 | `ingest` が `inbox/` に置かれたファイルのうち**未取り込み・変更分だけ**を一括で蒸留する(manifest の content hash で差分検出) |
 | 「Xについて何を知ってる?」 | `query` が `index.md` → ページと辿り、**出典付きで**回答する: 根拠ページ、信頼層、鮮度 |
 | 「wikiをlintして」 | `lint` が決定的な CLI チェックを実行し、その上に意味的チェック(矛盾・重複・ギャップ)を重ねて修正を提案する |
+
+取り込みの入力は 4 経路: URL、個別ファイル、貼り付けテキスト/会話、そして
+**inbox ディレクトリ**。inbox はファイルを `inbox/` に置いておくだけの経路で、
+`llmwiki inbox` が `.llmwiki-manifest.json` の content hash と突き合わせて
+`new` / `changed` / `ingested` / `missing` に分類するため、再実行してもライブラリ全体を
+処理し直すことはない — 差分だけが処理される。取り込み後もファイルは移動・削除されない
+(inbox は不変の生ソース層)。
+
+```bash
+cp ~/Downloads/paper.pdf my-wiki/inbox/   # 置く
+llmwiki inbox                             # 何が待っているか確認
+# → new  inbox/paper.pdf
+# あとは Claude Code で「inboxを取り込んで」
+```
 
 `query` スキルは**ローカルにcloneがなくても**使える: `llmwiki.yaml` の `remote_url` か
 環境変数 `LLMWIKI_REMOTE_URL` でホスティング済み wiki を指定すれば、`index.md` と
@@ -46,7 +61,9 @@ llmwiki init my-wiki && cd my-wiki
 
 ```
 my-wiki/
-├── llmwiki.yaml           # bundle_dir、remote_url、actor、categories
+├── llmwiki.yaml           # bundle_dir、inbox_dir、remote_url、actor、categories
+├── .llmwiki-manifest.json # inbox 取り込みの追跡(content hash、触れたページ)
+├── inbox/                 # 取り込み待ちファイルの置き場(デプロイされない)
 └── wiki/                  # OKF bundle = アップロードする単位そのもの
     ├── index.html         # 自己完結ビューア(ハッシュルーティング SPA、CDN 依存なし)
     ├── index.md           # カタログ — 人間と LLM の両方が辿る地図

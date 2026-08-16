@@ -9,6 +9,13 @@ bundle_dir: wiki
 # Used by the query skill as a fallback when no local bundle is available.
 remote_url: ""
 
+# Drop directory for source files awaiting ingestion, relative to this file.
+# It sits OUTSIDE bundle_dir on purpose: raw sources are never deployed.
+# `llmwiki inbox` lists its files as new/changed/ingested/missing by comparing
+# content hashes against .llmwiki-manifest.json, so re-running ingest only
+# processes the delta. The ingest skill picks pending files up from here.
+inbox_dir: inbox
+
 # Default actor recorded in `generated.by` on pages the skills write.
 # Convention: agents "producer/version", people "human:<id>", automation "process:<id>".
 actor: ""
