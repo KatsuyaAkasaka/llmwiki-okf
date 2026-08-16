@@ -71,7 +71,8 @@ func runInit(args []string) int {
 		fmt.Println("skipped", filepath.Join(dir, f), "(exists)")
 	}
 	fmt.Println("\nNext: set `actor` (and later `remote_url`) in llmwiki.yaml, then ingest",
-		"your first source with the llmwiki plugin's ingest skill.")
+		"your first source with the llmwiki plugin's ingest skill.",
+		"\nDrop files into ~/wiki_raw (or $LLMWIKI_INBOX_DIR) and run `llmwiki inbox` to see what's waiting.")
 	return 0
 }
 
@@ -143,7 +144,7 @@ func runInbox(args []string) int {
 		fmt.Fprintln(os.Stderr, "inbox:", err)
 		return 2
 	}
-	entries, err := inbox.Scan(cfg.root, cfg.inboxDir, m)
+	entries, err := inbox.Scan(cfg.inboxDir, m)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "inbox:", err)
 		return 2
@@ -162,8 +163,9 @@ func runInbox(args []string) int {
 		}
 		return 0
 	}
+	fmt.Printf("inbox: %s\n", cfg.inboxDir)
 	if len(entries) == 0 {
-		fmt.Printf("inbox %s/ is empty\n", cfg.inboxDir)
+		fmt.Println("empty — nothing waiting")
 		return 0
 	}
 	pending := 0
@@ -200,12 +202,12 @@ func runInboxMark(args []string) int {
 		fmt.Fprintln(os.Stderr, "inbox mark:", err)
 		return 2
 	}
-	// Accept both project-root-relative and cwd-relative paths.
-	rel := file
-	if abs, err := filepath.Abs(file); err == nil {
-		if r, err := filepath.Rel(cfg.root, abs); err == nil && !strings.HasPrefix(r, "..") {
-			rel = filepath.ToSlash(r)
-		}
+	// Accept absolute, cwd-relative, and inbox-relative paths; the manifest
+	// key is always inbox-relative so it survives the inbox dir moving.
+	key, err := inboxKey(cfg.inboxDir, file)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "inbox mark:", err)
+		return 2
 	}
 	var pageList []string
 	for _, p := range strings.Split(*pages, ",") {
@@ -213,7 +215,7 @@ func runInboxMark(args []string) int {
 			pageList = append(pageList, p)
 		}
 	}
-	if err := m.Mark(cfg.root, rel, pageList, time.Now()); err != nil {
+	if err := m.Mark(cfg.inboxDir, key, pageList, time.Now()); err != nil {
 		fmt.Fprintln(os.Stderr, "inbox mark:", err)
 		return 2
 	}
@@ -221,12 +223,33 @@ func runInboxMark(args []string) int {
 		fmt.Fprintln(os.Stderr, "inbox mark:", err)
 		return 2
 	}
-	fmt.Println("marked", rel)
+	fmt.Println("marked", key)
 	return 0
 }
 
+// inboxKey normalizes a user-supplied path (absolute, cwd-relative, or
+// already inbox-relative) to the inbox-relative manifest key.
+func inboxKey(inboxDir, file string) (string, error) {
+	abs := ""
+	if filepath.IsAbs(file) {
+		abs = filepath.Clean(file)
+	} else if _, err := os.Stat(file); err == nil {
+		if a, err := filepath.Abs(file); err == nil {
+			abs = a
+		}
+	}
+	if abs != "" {
+		r, err := filepath.Rel(inboxDir, abs)
+		if err != nil || r == ".." || strings.HasPrefix(r, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("%s is not inside the inbox directory %s", file, inboxDir)
+		}
+		return filepath.ToSlash(r), nil
+	}
+	return filepath.ToSlash(filepath.Clean(file)), nil
+}
+
 // config is the llmwiki.yaml contents plus the project root that held it —
-// the same discovery rule the skills use.
+// the same discovery rule the skills use. inboxDir is fully resolved.
 type config struct {
 	root      string
 	bundleDir string
@@ -235,6 +258,12 @@ type config struct {
 
 // loadConfig walks up from the working directory to the nearest llmwiki.yaml,
 // so every subcommand works from anywhere inside a wiki project.
+//
+// The inbox directory resolves as: llmwiki.yaml `inbox_dir` (if set) →
+// $LLMWIKI_INBOX_DIR → ~/wiki_raw. It deliberately defaults to a location
+// OUTSIDE the wiki project: raw sources don't belong in a possibly
+// git-managed, possibly deployed wiki repo. Relative values are resolved
+// against the project root; "~" is expanded.
 func loadConfig() (*config, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -253,10 +282,11 @@ func loadConfig() (*config, error) {
 			if raw.BundleDir == "" {
 				raw.BundleDir = "wiki"
 			}
-			if raw.InboxDir == "" {
-				raw.InboxDir = "inbox"
+			inboxDir, err := resolveInboxDir(dir, raw.InboxDir)
+			if err != nil {
+				return nil, err
 			}
-			return &config{root: dir, bundleDir: raw.BundleDir, inboxDir: raw.InboxDir}, nil
+			return &config{root: dir, bundleDir: raw.BundleDir, inboxDir: inboxDir}, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -264,4 +294,32 @@ func loadConfig() (*config, error) {
 		}
 		dir = parent
 	}
+}
+
+func resolveInboxDir(projectRoot, fromYAML string) (string, error) {
+	v := fromYAML
+	if v == "" {
+		v = os.Getenv("LLMWIKI_INBOX_DIR")
+	}
+	if v == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolving default inbox ~/wiki_raw: %w", err)
+		}
+		return filepath.Join(home, "wiki_raw"), nil
+	}
+	v = expandHome(v)
+	if filepath.IsAbs(v) {
+		return filepath.Clean(v), nil
+	}
+	return filepath.Join(projectRoot, v), nil
+}
+
+func expandHome(p string) string {
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, strings.TrimPrefix(strings.TrimPrefix(p, "~"), "/"))
+		}
+	}
+	return p
 }

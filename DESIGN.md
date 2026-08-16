@@ -28,7 +28,7 @@ Karpathy の [LLM Wiki パターン](https://gist.github.com/karpathy/442a6bf555
 | 10 | 生ソース保存 | デフォルト保存なし。指示時のみ `wiki/references/` にアーカイブ | バンドル肥大と公開バケットでの著作権リスクを回避 |
 | 11 | 命名 | リポジトリ `llmwiki-okf`、CLI バイナリ / プラグイン名 `llmwiki` | スキル呼び出しは `/llmwiki:ingest` 等 |
 | 12 | ライセンス | Apache-2.0 | OKF 本家と同一。仕様引用・企業利用に強い |
-| 13 | inbox 取り込み | `inbox_dir`(bundle 外)に置いたファイルを ingest の追加経路として一括取り込み。`.llmwiki-manifest.json` の content hash で差分検出 | [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) の manifest 方式を参考。2 回目以降は差分のみ処理、ファイルは移動・削除しない |
+| 13 | inbox 取り込み | inbox ディレクトリのファイルを ingest の追加経路として一括取り込み。解決順: `llmwiki.yaml` の `inbox_dir` → `$LLMWIKI_INBOX_DIR` → **`~/wiki_raw`**。`.llmwiki-manifest.json`(wiki 側)の content hash で差分検出 | [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) の manifest 方式を参考。デフォルトを wiki プロジェクトの**外**にするのは、git 管理されうるリポジトリに生ソースを入れないため。init も inbox を作らない。2 回目以降は差分のみ処理、ファイルは移動・削除しない |
 
 ## 3. リポジトリ構成
 
@@ -60,18 +60,22 @@ llmwiki-okf/
 ## 4. wiki プロジェクトの構成(init 後)
 
 ```
+~/wiki_raw/                      # 取り込み待ちファイルの置き場(生ソース層、プロジェクト外)
 my-wiki/
 ├── llmwiki.yaml                 # 設定(下記)
 ├── .llmwiki-manifest.json       # inbox 取り込みの追跡(content hash / 触れたページ)
-├── inbox/                       # 取り込み待ちファイルの置き場(生ソース層、デプロイされない)
 └── wiki/                        # OKF bundle = 静的ホスティングに置く単位
 ```
+
+inbox を wiki プロジェクトの外に置くのは意図的: my-wiki は git 管理されうるので、
+生ソース(PDF・画像・チャットログ等)をその中に入れることは推奨しない。manifest は
+wiki 側にあるため、同じ inbox を複数の wiki が独立に取り込める。
 
 `llmwiki.yaml`:
 
 ```yaml
 bundle_dir: wiki                 # bundle ルートの相対パス
-inbox_dir: inbox                 # 取り込み待ちディレクトリ(bundle の外)
+inbox_dir: ""                    # 未設定なら $LLMWIKI_INBOX_DIR → ~/wiki_raw の順で解決
 remote_url: ""                   # 公開 URL(例 https://storage.googleapis.com/my-wiki)
 actor: ""                        # generated.by の既定値(例 llmwiki/claude-fable-5)
 categories:
@@ -124,7 +128,9 @@ stale_after: 2027-01-01                       # 鮮度期限
 inbox の各ファイルを manifest の content hash と比較して分類する:
 `new`(未取り込み)/ `changed`(取り込み後に変更)/ `ingested`(処理済み)/
 `missing`(manifest にあるがファイル消失)。`mark` は取り込み完了の宣言で、
-現在のハッシュ・時刻・触れたページを `.llmwiki-manifest.json` に記録する。
+現在のハッシュ・時刻・触れたページを `.llmwiki-manifest.json` に記録する
+(キーは inbox 相対なので inbox の場所を変えても追跡が生きる)。
+inbox の場所は `inbox_dir`(yaml)→ `$LLMWIKI_INBOX_DIR` → `~/wiki_raw` の順で解決。
 発見と記録だけを CLI が決定的に担い、蒸留は ingest スキルの仕事(役割分担は lint と同型)。
 
 ### `llmwiki lint [--format json] [--strict] [dir]`

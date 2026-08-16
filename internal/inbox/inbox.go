@@ -18,8 +18,11 @@ import (
 	"time"
 )
 
-// ManifestName is the tracking file, kept at the project root (next to
-// llmwiki.yaml) and outside the bundle so it is never deployed.
+// ManifestName is the tracking file, kept at the wiki project root (next to
+// llmwiki.yaml) and outside the bundle so it is never deployed. The inbox
+// directory itself lives elsewhere (default ~/wiki_raw): the manifest belongs
+// to the wiki that consumed the sources, so several wikis can ingest from the
+// same drop directory independently.
 const ManifestName = ".llmwiki-manifest.json"
 
 // Statuses reported by Scan.
@@ -37,7 +40,7 @@ type ManifestEntry struct {
 	Pages      []string `json:"pages,omitempty"` // bundle-relative pages it touched
 }
 
-// Manifest maps project-root-relative source paths to their ingest record.
+// Manifest maps inbox-relative source paths to their ingest record.
 type Manifest struct {
 	Version int                      `json:"version"`
 	Sources map[string]ManifestEntry `json:"sources"`
@@ -73,22 +76,22 @@ func (m *Manifest) Save(root string) error {
 
 // Entry is one Scan result row.
 type Entry struct {
-	Path   string `json:"path"`   // project-root-relative, slash-separated
+	Path   string `json:"path"`   // inbox-relative, slash-separated
 	Status string `json:"status"` // new | changed | ingested | missing
 	SHA256 string `json:"sha256,omitempty"`
 }
 
-// Scan walks inboxDir (relative to root) recursively and classifies every file
-// against the manifest. Dotfiles (.gitkeep etc.) are skipped. Manifest entries
-// under inboxDir whose file has disappeared are reported as missing.
-func Scan(root, inboxDir string, m *Manifest) ([]Entry, error) {
+// Scan walks inboxDir (an absolute or resolved path) recursively and
+// classifies every file against the manifest. Dotfiles (.gitkeep etc.) are
+// skipped. Manifest entries whose file has disappeared are reported as
+// missing. A non-existent inbox directory simply means nothing is waiting.
+func Scan(inboxDir string, m *Manifest) ([]Entry, error) {
 	var entries []Entry
 	seen := map[string]bool{}
-	base := filepath.Join(root, inboxDir)
 
-	err := filepath.WalkDir(base, func(p string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(inboxDir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
-			if os.IsNotExist(err) && p == base {
+			if os.IsNotExist(err) && p == inboxDir {
 				return filepath.SkipAll // no inbox directory yet — nothing waiting
 			}
 			return err
@@ -102,7 +105,7 @@ func Scan(root, inboxDir string, m *Manifest) ([]Entry, error) {
 		if d.IsDir() {
 			return nil
 		}
-		rel, err := filepath.Rel(root, p)
+		rel, err := filepath.Rel(inboxDir, p)
 		if err != nil {
 			return err
 		}
@@ -127,9 +130,8 @@ func Scan(root, inboxDir string, m *Manifest) ([]Entry, error) {
 		return nil, fmt.Errorf("inbox scan: %w", err)
 	}
 
-	prefix := filepath.ToSlash(inboxDir) + "/"
 	for rel := range m.Sources {
-		if strings.HasPrefix(rel, prefix) && !seen[rel] {
+		if !seen[rel] {
 			entries = append(entries, Entry{Path: rel, Status: StatusMissing})
 		}
 	}
@@ -137,11 +139,11 @@ func Scan(root, inboxDir string, m *Manifest) ([]Entry, error) {
 	return entries, nil
 }
 
-// Mark records file (project-root-relative) as ingested at its current
-// content hash. Call it only after the pages are actually written — the mark
-// is the claim that this exact content has been distilled.
-func (m *Manifest) Mark(root, file string, pages []string, now time.Time) error {
-	sum, err := hashFile(filepath.Join(root, filepath.FromSlash(file)))
+// Mark records the inbox-relative file as ingested at its current content
+// hash. Call it only after the pages are actually written — the mark is the
+// claim that this exact content has been distilled.
+func (m *Manifest) Mark(inboxDir, file string, pages []string, now time.Time) error {
+	sum, err := hashFile(filepath.Join(inboxDir, filepath.FromSlash(file)))
 	if err != nil {
 		return fmt.Errorf("mark: %w", err)
 	}

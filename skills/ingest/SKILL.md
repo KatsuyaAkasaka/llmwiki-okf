@@ -24,7 +24,10 @@ description: >
 作業ディレクトリから上方向に `llmwiki.yaml` を探す。得られるもの:
 
 - `bundle_dir` — OKF bundle のルート(デフォルト `wiki/`)
-- `inbox_dir` — 取り込み待ちファイルの置き場(デフォルト `inbox/`、bundle の外)
+- `inbox_dir` — 取り込み待ちファイルの置き場。解決順:
+  `llmwiki.yaml` の `inbox_dir` → 環境変数 `LLMWIKI_INBOX_DIR` → `~/wiki_raw`。
+  意図的に wiki プロジェクトの**外**にある(git 管理されうるリポジトリに生ソースを
+  入れないため)
 - `actor` — `generated.by` に入れる値(なければ `llmwiki/<your-model-id>` にフォールバック)
 - `categories` — カテゴリディレクトリとその意味
 
@@ -53,10 +56,11 @@ description: >
 
 ## inbox モード — ディレクトリからの一括取り込み
 
-`inbox_dir` に置かれたファイルを一括で取り込む経路。取り込み済みかどうかは
-`.llmwiki-manifest.json`(プロジェクトルート)の content hash で判定されるので、
-2 回目以降は差分 — new と changed — だけを処理すればよい。ライブラリ全体を
-再処理してはならない。
+inbox ディレクトリ(デフォルト `~/wiki_raw`)に置かれたファイルを一括で取り込む経路。
+取り込み済みかどうかは `.llmwiki-manifest.json`(wiki プロジェクトルート)の content hash
+で判定されるので、2 回目以降は差分 — new と changed — だけを処理すればよい。ライブラリ
+全体を再処理してはならない。manifest は wiki 側にあるため、同じ inbox を複数の wiki が
+それぞれ独立に取り込める。
 
 1. `llmwiki inbox --format json` を実行する。各ファイルの status が得られる:
    `new`(未取り込み)/ `changed`(取り込み後に内容が変わった)/ `ingested`(処理済み・
@@ -64,8 +68,9 @@ description: >
 2. `new` と `changed` の各ファイルについて、このスキルの Step 1〜5 を実行する。
    `changed` は新規ページ作成ではなく既存の関連ページの**更新**になることが多い —
    manifest の `pages` がそのファイルが前回触れたページを教えてくれる。
-   - ソースの `resource` はプロジェクトルート相対パス(例 `inbox/paper.pdf`)。
-     デプロイ先では解決できないが、来歴としては十分である。
+   - ソースの `resource` は `inbox:<path>` 形式のスコープ記述子(例 `inbox:paper.pdf`)。
+     ローカルの絶対パスを書かないこと — bundle は公開されうるので、ユーザー名を含む
+     パスを来歴に漏らさない。
    - 読める形式は何でも受け付ける: Markdown/テキストは Read、PDF は Read のページ指定、
      画像は vision で解釈(vision 非対応モデルならスキップし、どのファイルを飛ばしたか
      報告する)。
