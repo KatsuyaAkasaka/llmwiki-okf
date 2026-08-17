@@ -142,6 +142,13 @@ raw の各ファイルを manifest の content hash と比較して分類する:
 raw の場所は `raw_dir`(yaml)→ `$LLMWIKI_RAW_DIR` → `~/wiki_raw` の順で解決。
 発見と記録だけを CLI が決定的に担い、蒸留は ingest スキルの仕事(役割分担は lint と同型)。
 
+### `llmwiki update [dir]`
+仕組みの更新を既存プロジェクトへ反映する。ツール所有ファイル(`Managed` リスト、
+現状はビューア `<bundle_dir>/index.html`)をテンプレート最新版で上書きし、
+テンプレートに増えた設定キーを報告する。`llmwiki.yaml` と wiki ページは
+ユーザー所有物なので決して書き換えない。冪等。対象は引数 > cwd 上方探索 >
+`$LLMWIKI_WIKI_DIR` で解決。
+
 ### `llmwiki lint [--format json] [--strict] [dir]`
 bundle ルート(llmwiki.yaml の bundle_dir、または指定ディレクトリ)に対し決定的チェックを実行。
 

@@ -94,6 +94,22 @@ my-wiki/
 *human-reviewed*。本プロジェクトが実装するフォーマットのサブセットは
 [docs/okf-cheatsheet.md](docs/okf-cheatsheet.md)、設計の意思決定は [DESIGN.md](DESIGN.md) を参照。
 
+## 仕組みの更新を既存 wiki に反映する
+
+llmwiki-okf 側の仕組みが更新されたら、既存の wiki プロジェクトには `update` で反映する:
+
+```bash
+go install github.com/KatsuyaAkasaka/llmwiki-okf/cmd/llmwiki@latest   # CLI 本体の更新
+llmwiki update            # wiki プロジェクト内、または LLMWIKI_WIKI_DIR 解決先に反映
+llmwiki update <dir>      # 対象を明示する場合
+```
+
+`update` が触るのは**ツール所有ファイルだけ**(現状はビューア `index.html`)。
+`llmwiki.yaml` と wiki ページはユーザーの持ち物なので書き換えず、テンプレートに増えた
+設定キーがあれば「note:」として報告する(未設定でもデフォルトで動く)。何度実行しても
+安全(冪等)。スキルの更新は `/plugin marketplace update llmwiki-okf` → `/plugin update
+llmwiki@llmwiki-okf` で別途行う。
+
 ## lint
 
 ```bash

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -37,6 +38,8 @@ func main() {
 		os.Exit(runLint(os.Args[2:]))
 	case "raw":
 		os.Exit(runRaw(os.Args[2:]))
+	case "update":
+		os.Exit(runUpdate(os.Args[2:]))
 	case "version", "--version", "-v":
 		fmt.Println("llmwiki", version)
 	default:
@@ -51,6 +54,7 @@ func usage() {
   llmwiki lint [--format text|json] [--strict] [bundle-dir]
   llmwiki raw [--format text|json]              list raw sources (new/changed/ingested/missing)
   llmwiki raw mark <file> [--pages a.md,b.md]   record a source as ingested at its current hash
+  llmwiki update [dir]                            refresh tool-owned files (viewer) from the current template
   llmwiki version`)
 }
 
@@ -120,6 +124,72 @@ func runLint(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// runUpdate propagates mechanism updates into an existing wiki project:
+// tool-owned files (the viewer) are refreshed from the embedded template, and
+// config keys the template has gained since the project was scaffolded are
+// reported — but llmwiki.yaml and wiki pages are user content, never rewritten.
+func runUpdate(args []string) int {
+	var cfg *config
+	var err error
+	if len(args) > 0 {
+		cfg, err = parseConfigAt(args[0])
+	} else {
+		cfg, err = loadConfig()
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "update:", err)
+		return 2
+	}
+	res, err := scaffold.Update(llmwikiokf.Template, "template", cfg.root, cfg.bundleDir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "update:", err)
+		return 2
+	}
+	fmt.Println("project:", cfg.root)
+	for _, f := range res.Updated {
+		fmt.Println("updated  ", f)
+	}
+	for _, f := range res.Unchanged {
+		fmt.Println("unchanged", f)
+	}
+	for _, k := range missingConfigKeys(cfg.root) {
+		fmt.Printf("note: llmwiki.yaml has no `%s` key — see the template llmwiki.yaml for what it does (defaults still apply)\n", k)
+	}
+	return 0
+}
+
+// missingConfigKeys diffs the template llmwiki.yaml's top-level keys against
+// the project's, so update can surface knobs added after the project was
+// scaffolded without ever editing the user's config.
+func missingConfigKeys(root string) []string {
+	tmpl, err := llmwikiokf.Template.ReadFile("template/llmwiki.yaml")
+	if err != nil {
+		return nil
+	}
+	proj, err := os.ReadFile(filepath.Join(root, "llmwiki.yaml"))
+	if err != nil {
+		return nil
+	}
+	keys := func(data []byte) map[string]bool {
+		m := map[string]any{}
+		_ = yaml.Unmarshal(data, &m)
+		set := map[string]bool{}
+		for k := range m {
+			set[k] = true
+		}
+		return set
+	}
+	have := keys(proj)
+	var missing []string
+	for k := range keys(tmpl) {
+		if !have[k] {
+			missing = append(missing, k)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 // runRaw lists raw sources against the manifest (default), or with
