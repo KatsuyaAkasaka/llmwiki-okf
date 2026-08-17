@@ -61,14 +61,9 @@ cd my-wiki && llmwiki raw               # 何が待っているか確認
 ```
 
 **wiki の場所の解決**: スキルと CLI は作業ディレクトリから上方向に `llmwiki.yaml` を
-探し、見つからなければ環境変数 **`LLMWIKI_WIKI_DIR`**(デフォルトの wiki プロジェクト
-ルート)を使う。これを設定しておけば、wiki と無関係なリポジトリで作業中に
-「これをwikiに取り込んで」と言ってもスキルが迷わない:
-
-```bash
-# ~/.zshrc
-export LLMWIKI_WIKI_DIR="$HOME/path/to/my-wiki"
-```
+探す。wiki プロジェクトの外で使うときは対象を明示する — CLI はパス引数
+(`llmwiki update <dir>`、`llmwiki lint <bundle-dir>`)、スキルは会話で wiki のパスを
+伝える(不明ならスキルが尋ねる)。
 
 `query` スキルは**ローカルにcloneがなくても**使える: `llmwiki.yaml` の `remote_url` か
 環境変数 `LLMWIKI_REMOTE_URL` でホスティング済み wiki を指定すれば、`index.md` と
@@ -100,8 +95,8 @@ llmwiki-okf 側の仕組みが更新されたら、既存の wiki プロジェ�
 
 ```bash
 go install github.com/KatsuyaAkasaka/llmwiki-okf/cmd/llmwiki@latest   # CLI 本体の更新
-llmwiki update            # wiki プロジェクト内、または LLMWIKI_WIKI_DIR 解決先に反映
-llmwiki update <dir>      # 対象を明示する場合
+llmwiki update <dir>      # 対象の wiki プロジェクトを指定して反映
+llmwiki update            # wiki プロジェクトの中で実行する場合は引数不要
 ```
 
 `update` が触るのは**ツール所有ファイルだけ**(現状はビューア `index.html`)。

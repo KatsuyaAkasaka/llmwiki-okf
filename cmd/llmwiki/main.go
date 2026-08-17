@@ -130,6 +130,7 @@ func runLint(args []string) int {
 // tool-owned files (the viewer) are refreshed from the embedded template, and
 // config keys the template has gained since the project was scaffolded are
 // reported — but llmwiki.yaml and wiki pages are user content, never rewritten.
+// The target is the path argument, or the enclosing project when run inside one.
 func runUpdate(args []string) int {
 	var cfg *config
 	var err error
@@ -327,9 +328,8 @@ type config struct {
 }
 
 // loadConfig walks up from the working directory to the nearest llmwiki.yaml,
-// so every subcommand works from anywhere inside a wiki project. When the walk
-// finds nothing — the skills often fire in unrelated repos — it falls back to
-// $LLMWIKI_WIKI_DIR, the user's default wiki project root.
+// so every subcommand works from anywhere inside a wiki project. Outside one,
+// pass the target explicitly (`llmwiki update <dir>`, `llmwiki lint <bundle>`).
 //
 // The raw directory resolves as: llmwiki.yaml `raw_dir` (if set) →
 // $LLMWIKI_RAW_DIR → ~/wiki_raw. It deliberately defaults to a location
@@ -353,14 +353,7 @@ func loadConfig() (*config, error) {
 		}
 		dir = parent
 	}
-	if w := os.Getenv("LLMWIKI_WIKI_DIR"); w != "" {
-		cfg, err := parseConfigAt(expandHome(w))
-		if err != nil {
-			return nil, fmt.Errorf("LLMWIKI_WIKI_DIR=%s: %w", w, err)
-		}
-		return cfg, nil
-	}
-	return nil, fmt.Errorf("no llmwiki.yaml found upward from the working directory and $LLMWIKI_WIKI_DIR is not set")
+	return nil, fmt.Errorf("no llmwiki.yaml found upward from the working directory; pass the wiki project path explicitly")
 }
 
 // parseConfigAt reads dir/llmwiki.yaml. A missing file is reported with

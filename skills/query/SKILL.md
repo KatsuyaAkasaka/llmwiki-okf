@@ -21,9 +21,9 @@ wiki はコンパイル済みの知識である: 一度蒸留され、最新に�
 
 以下の順で試し、最初に成功したものを使う:
 
-1. **ローカル bundle**: 作業ディレクトリから上方向に `llmwiki.yaml` を探し、なければ
-   環境変数 `LLMWIKI_WIKI_DIR`(デフォルトの wiki プロジェクトルート)を見る →
-   `bundle_dir`(デフォルト `wiki/`)。ローカルが最優先 — どのデプロイよりも新しい。
+1. **ローカル bundle**: 作業ディレクトリから上方向に `llmwiki.yaml` を探す(ユーザーが
+   会話で wiki のパスを指定していればそれを使う)→ `bundle_dir`(デフォルト `wiki/`)。
+   ローカルが最優先 — どのデプロイよりも新しい。
 2. **リモート**: `llmwiki.yaml` の `remote_url`、なければ環境変数 `LLMWIKI_REMOTE_URL`、
    なければユーザーが与えた URL。`<remote_url>/index.md` を fetch する。
 3. どれもなければ → bundle のパスか wiki の URL が必要だと伝える。推測しない。
