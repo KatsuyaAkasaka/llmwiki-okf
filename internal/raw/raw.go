@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // ManifestName is the tracking file, kept at the wiki project root (next to
@@ -46,7 +48,17 @@ type Manifest struct {
 	Sources map[string]ManifestEntry `json:"sources"`
 }
 
+// normKey returns the canonical manifest key for a path: slash-separated and
+// Unicode NFC. macOS reports NFD filenames from directory walks while
+// user-typed paths are NFC; without one canonical form the same file shows up
+// as both "missing" (the marked NFC key) and "new" (the on-disk NFD name).
+func normKey(p string) string {
+	return norm.NFC.String(filepath.ToSlash(p))
+}
+
 // Load reads the manifest at root, returning an empty one if none exists yet.
+// Keys are re-normalized on load so manifests written before normalization
+// (or edited by hand) converge to canonical form.
 func Load(root string) (*Manifest, error) {
 	m := &Manifest{Version: 1, Sources: map[string]ManifestEntry{}}
 	data, err := os.ReadFile(filepath.Join(root, ManifestName))
@@ -59,9 +71,11 @@ func Load(root string) (*Manifest, error) {
 	if err := json.Unmarshal(data, m); err != nil {
 		return nil, fmt.Errorf("manifest: %w", err)
 	}
-	if m.Sources == nil {
-		m.Sources = map[string]ManifestEntry{}
+	normalized := map[string]ManifestEntry{}
+	for k, v := range m.Sources {
+		normalized[normKey(k)] = v
 	}
+	m.Sources = normalized
 	return m, nil
 }
 
@@ -109,21 +123,21 @@ func Scan(rawDir string, m *Manifest) ([]Entry, error) {
 		if err != nil {
 			return err
 		}
-		rel = filepath.ToSlash(rel)
+		key := normKey(rel)
 		sum, err := hashFile(p)
 		if err != nil {
 			return err
 		}
-		seen[rel] = true
+		seen[key] = true
 		status := StatusNew
-		if prev, ok := m.Sources[rel]; ok {
+		if prev, ok := m.Sources[key]; ok {
 			if prev.SHA256 == sum {
 				status = StatusIngested
 			} else {
 				status = StatusChanged
 			}
 		}
-		entries = append(entries, Entry{Path: rel, Status: status, SHA256: sum})
+		entries = append(entries, Entry{Path: key, Status: status, SHA256: sum})
 		return nil
 	})
 	if err != nil {
@@ -141,13 +155,23 @@ func Scan(rawDir string, m *Manifest) ([]Entry, error) {
 
 // Mark records the raw-relative file as ingested at its current content
 // hash. Call it only after the pages are actually written — the mark is the
-// claim that this exact content has been distilled.
+// claim that this exact content has been distilled. The stored key is
+// canonical (NFC); for reading the file, the given spelling plus its NFC and
+// NFD forms are tried, so a hand-typed (NFC) path works even where the
+// filesystem stores the name decomposed and compares byte-wise.
 func (m *Manifest) Mark(rawDir, file string, pages []string, now time.Time) error {
-	sum, err := hashFile(filepath.Join(rawDir, filepath.FromSlash(file)))
+	var sum string
+	var err error
+	for _, cand := range []string{file, norm.NFC.String(file), norm.NFD.String(file)} {
+		sum, err = hashFile(filepath.Join(rawDir, filepath.FromSlash(cand)))
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("mark: %w", err)
 	}
-	m.Sources[filepath.ToSlash(file)] = ManifestEntry{
+	m.Sources[normKey(file)] = ManifestEntry{
 		SHA256:     sum,
 		IngestedAt: now.UTC().Format(time.RFC3339),
 		Pages:      pages,
