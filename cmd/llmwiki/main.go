@@ -245,7 +245,7 @@ func runRaw(args []string) int {
 	}
 	pending := 0
 	for _, e := range entries {
-		fmt.Printf("%-9s %s\n", e.Status, e.Path)
+		fmt.Printf("%-9s %-7s %s\n", e.Status, e.Origin, e.Path)
 		if e.Status == raw.StatusNew || e.Status == raw.StatusChanged {
 			pending++
 		}

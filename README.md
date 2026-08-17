@@ -52,6 +52,20 @@ git 管理されることがあり、生ソース(PDF・画像・チャットロ
 (raw は不変の生ソース層)。manifest は wiki 側に置かれるので、同じ raw を複数の
 wiki が独立に取り込める。
 
+**手動メモは `manual/` サブディレクトリへ**。raw 直下は書籍・記事・エクスポート等の
+「出典の明確なソース」置き場で、そこから蒸留したページには ingest が `verified`
+(machine-confirmed)を付ける。一方 `manual/` 配下は自分のメモ・未確認の主張の置き場で、
+蒸留されたページは **unverified** のまま残る — 内容を確認したら自分で
+`verified: {by: human:<id>}` を足して human-reviewed に昇格させる。`llmwiki raw` は
+各ファイルの `origin`(`manual` / `source`)を表示するので機械的に区別できる。
+
+```
+~/wiki_raw/
+├── some-book-chapter.pdf   # source → 蒸留ページは verified(machine-confirmed)
+└── manual/
+    └── my-hypothesis.md    # manual → 蒸留ページは unverified
+```
+
 ```bash
 mkdir -p ~/wiki_raw
 cp ~/Downloads/paper.pdf ~/wiki_raw/      # 置く

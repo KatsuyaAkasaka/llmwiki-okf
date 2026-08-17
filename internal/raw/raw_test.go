@@ -144,6 +144,36 @@ func TestUnicodeNormalizationKeys(t *testing.T) {
 	}
 }
 
+// Files under the reserved manual/ subdirectory are the user's own notes and
+// must be distinguishable from captured source material — the ingest skill
+// keys its verified-or-not policy off this origin.
+func TestOriginClassification(t *testing.T) {
+	rawDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(rawDir, "manual"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for rel, content := range map[string]string{
+		"book-excerpt.md": "from a book",
+		"manual/memo.md":  "my own thinking",
+	} {
+		if err := os.WriteFile(filepath.Join(rawDir, filepath.FromSlash(rel)), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m, _ := Load(t.TempDir())
+	entries, err := Scan(rawDir, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	origins := map[string]string{}
+	for _, e := range entries {
+		origins[e.Path] = e.Origin
+	}
+	if origins["book-excerpt.md"] != OriginSource || origins["manual/memo.md"] != OriginManual {
+		t.Fatalf("want source+manual, got %v", origins)
+	}
+}
+
 func TestScanWithoutRawDir(t *testing.T) {
 	m, _ := Load(t.TempDir())
 	entries, err := Scan(filepath.Join(t.TempDir(), "does-not-exist"), m)

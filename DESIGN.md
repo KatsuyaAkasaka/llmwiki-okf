@@ -29,6 +29,7 @@ Karpathy の [LLM Wiki パターン](https://gist.github.com/karpathy/442a6bf555
 | 11 | 命名 | リポジトリ `llmwiki-okf`、CLI バイナリ / プラグイン名 `llmwiki` | スキル呼び出しは `/llmwiki:ingest` 等 |
 | 12 | ライセンス | Apache-2.0 | OKF 本家と同一。仕様引用・企業利用に強い |
 | 13 | raw 取り込み | raw ディレクトリのファイルを ingest の追加経路として一括取り込み。解決順: `llmwiki.yaml` の `raw_dir` → `$LLMWIKI_RAW_DIR` → **`~/wiki_raw`**。`.llmwiki-manifest.json`(wiki 側)の content hash で差分検出 | [Ar9av/obsidian-wiki](https://github.com/Ar9av/obsidian-wiki) の manifest 方式を参考。デフォルトを wiki プロジェクトの**外**にするのは、git 管理されうるリポジトリに生ソースを入れないため。init も raw を作らない。2 回目以降は差分のみ処理、ファイルは移動・削除しない |
+| 14 | 手動 raw と信頼層 | raw の予約サブディレクトリ `manual/` = 手動メモ置き場。`llmwiki raw` が `origin: manual/source` を出力し、ingest スキルは manual 由来ページに `verified` を付けず(unverified)、公刊ソース(書籍・URL・raw 直下)由来にはエージェント actor の `verified` を付与(machine-confirmed) | 手動メモは突き合わせる出典が存在しないため未検証が正確。human-reviewed への昇格は人間が自分で `verified` を足したときのみ(偽装しない) |
 
 ## 3. リポジトリ構成
 
@@ -137,7 +138,10 @@ stale_after: 2027-01-01                       # 鮮度期限
 ### `llmwiki raw [--format json]` / `llmwiki raw mark <file> [--pages a.md,b.md]`
 raw の各ファイルを manifest の content hash と比較して分類する:
 `new`(未取り込み)/ `changed`(取り込み後に変更)/ `ingested`(処理済み)/
-`missing`(manifest にあるがファイル消失)。`mark` は取り込み完了の宣言で、
+`missing`(manifest にあるがファイル消失)。各エントリには `origin` も付く:
+`manual`(予約サブディレクトリ `manual/` 配下 = 手動メモ、蒸留ページは unverified)/
+`source`(通常ソース、蒸留ページは machine-confirmed にしてよい)。
+`mark` は取り込み完了の宣言で、
 現在のハッシュ・時刻・触れたページを `.llmwiki-manifest.json` に記録する
 (キーは raw 相対なので raw の場所を変えても追跡が生きる)。
 raw の場所は `raw_dir`(yaml)→ `$LLMWIKI_RAW_DIR` → `~/wiki_raw` の順で解決。

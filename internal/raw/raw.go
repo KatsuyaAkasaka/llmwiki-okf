@@ -35,6 +35,25 @@ const (
 	StatusMissing  = "missing"  // in manifest, no longer on disk
 )
 
+// ManualDir is the reserved subdirectory of the raw directory for hand-written
+// notes. Files under it are the user's own unconfirmed material: the ingest
+// skill leaves pages distilled from them unverified, whereas regular raw files
+// (books, exports, saved articles) may be verified by the ingesting agent.
+const ManualDir = "manual"
+
+// Origins reported by Scan.
+const (
+	OriginManual = "manual" // under manual/ — distill as unverified
+	OriginSource = "source" // regular captured source material
+)
+
+func originOf(key string) string {
+	if key == ManualDir || strings.HasPrefix(key, ManualDir+"/") {
+		return OriginManual
+	}
+	return OriginSource
+}
+
 // ManifestEntry records one ingested source.
 type ManifestEntry struct {
 	SHA256     string   `json:"sha256"`
@@ -92,6 +111,7 @@ func (m *Manifest) Save(root string) error {
 type Entry struct {
 	Path   string `json:"path"`   // raw-relative, slash-separated
 	Status string `json:"status"` // new | changed | ingested | missing
+	Origin string `json:"origin"` // manual | source (manual/ subdirectory or not)
 	SHA256 string `json:"sha256,omitempty"`
 }
 
@@ -137,7 +157,7 @@ func Scan(rawDir string, m *Manifest) ([]Entry, error) {
 				status = StatusChanged
 			}
 		}
-		entries = append(entries, Entry{Path: key, Status: status, SHA256: sum})
+		entries = append(entries, Entry{Path: key, Status: status, Origin: originOf(key), SHA256: sum})
 		return nil
 	})
 	if err != nil {
@@ -146,7 +166,7 @@ func Scan(rawDir string, m *Manifest) ([]Entry, error) {
 
 	for rel := range m.Sources {
 		if !seen[rel] {
-			entries = append(entries, Entry{Path: rel, Status: StatusMissing})
+			entries = append(entries, Entry{Path: rel, Status: StatusMissing, Origin: originOf(rel)})
 		}
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
