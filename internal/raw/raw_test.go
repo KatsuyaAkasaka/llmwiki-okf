@@ -92,8 +92,11 @@ func TestRawLifecycle(t *testing.T) {
 func TestUnicodeNormalizationKeys(t *testing.T) {
 	rawDir := t.TempDir()
 	projectRoot := t.TempDir()
-	nfd := "ガイドライン.md" // カ+濁点(分解形)で始まるファイル名
-	nfc := norm.NFC.String(nfd)
+	// Fixture derived programmatically: a hand-typed "NFD" literal can be
+	// only partially decomposed, which is the exact byte mismatch this test
+	// exists to prevent. \u escapes keep the source normalization-proof.
+	nfc := norm.NFC.String("ガイドライン.md")
+	nfd := norm.NFD.String(nfc)
 	if nfd == nfc {
 		t.Fatal("test fixture must differ between NFC and NFD")
 	}
