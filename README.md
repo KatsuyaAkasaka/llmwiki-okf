@@ -60,6 +60,16 @@ cd my-wiki && llmwiki raw               # 何が待っているか確認
 # あとは Claude Code で「rawを取り込んで」
 ```
 
+**wiki の場所の解決**: スキルと CLI は作業ディレクトリから上方向に `llmwiki.yaml` を
+探し、見つからなければ環境変数 **`LLMWIKI_WIKI_DIR`**(デフォルトの wiki プロジェクト
+ルート)を使う。これを設定しておけば、wiki と無関係なリポジトリで作業中に
+「これをwikiに取り込んで」と言ってもスキルが迷わない:
+
+```bash
+# ~/.zshrc
+export LLMWIKI_WIKI_DIR="$HOME/path/to/my-wiki"
+```
+
 `query` スキルは**ローカルにcloneがなくても**使える: `llmwiki.yaml` の `remote_url` か
 環境変数 `LLMWIKI_REMOTE_URL` でホスティング済み wiki を指定すれば、`index.md` と
 ページを HTTP で取得する。プラグインを入れて URL を設定し、質問するだけ。

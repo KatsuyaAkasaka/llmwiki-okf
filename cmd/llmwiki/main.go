@@ -257,7 +257,9 @@ type config struct {
 }
 
 // loadConfig walks up from the working directory to the nearest llmwiki.yaml,
-// so every subcommand works from anywhere inside a wiki project.
+// so every subcommand works from anywhere inside a wiki project. When the walk
+// finds nothing — the skills often fire in unrelated repos — it falls back to
+// $LLMWIKI_WIKI_DIR, the user's default wiki project root.
 //
 // The raw directory resolves as: llmwiki.yaml `raw_dir` (if set) →
 // $LLMWIKI_RAW_DIR → ~/wiki_raw. It deliberately defaults to a location
@@ -270,30 +272,50 @@ func loadConfig() (*config, error) {
 		return nil, err
 	}
 	for {
-		cfgPath := filepath.Join(dir, "llmwiki.yaml")
-		if data, err := os.ReadFile(cfgPath); err == nil {
-			var raw struct {
-				BundleDir string `yaml:"bundle_dir"`
-				RawDir    string `yaml:"raw_dir"`
-			}
-			if err := yaml.Unmarshal(data, &raw); err != nil {
-				return nil, fmt.Errorf("%s: %w", cfgPath, err)
-			}
-			if raw.BundleDir == "" {
-				raw.BundleDir = "wiki"
-			}
-			rawDir, err := resolveRawDir(dir, raw.RawDir)
-			if err != nil {
-				return nil, err
-			}
-			return &config{root: dir, bundleDir: raw.BundleDir, rawDir: rawDir}, nil
+		if cfg, err := parseConfigAt(dir); err == nil {
+			return cfg, nil
+		} else if !os.IsNotExist(err) {
+			return nil, err
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return nil, fmt.Errorf("no llmwiki.yaml found upward from the working directory")
+			break
 		}
 		dir = parent
 	}
+	if w := os.Getenv("LLMWIKI_WIKI_DIR"); w != "" {
+		cfg, err := parseConfigAt(expandHome(w))
+		if err != nil {
+			return nil, fmt.Errorf("LLMWIKI_WIKI_DIR=%s: %w", w, err)
+		}
+		return cfg, nil
+	}
+	return nil, fmt.Errorf("no llmwiki.yaml found upward from the working directory and $LLMWIKI_WIKI_DIR is not set")
+}
+
+// parseConfigAt reads dir/llmwiki.yaml. A missing file is reported with
+// os.IsNotExist so callers can keep searching.
+func parseConfigAt(dir string) (*config, error) {
+	cfgPath := filepath.Join(dir, "llmwiki.yaml")
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return nil, err
+	}
+	var raw struct {
+		BundleDir string `yaml:"bundle_dir"`
+		RawDir    string `yaml:"raw_dir"`
+	}
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("%s: %w", cfgPath, err)
+	}
+	if raw.BundleDir == "" {
+		raw.BundleDir = "wiki"
+	}
+	rawDir, err := resolveRawDir(dir, raw.RawDir)
+	if err != nil {
+		return nil, err
+	}
+	return &config{root: dir, bundleDir: raw.BundleDir, rawDir: rawDir}, nil
 }
 
 func resolveRawDir(projectRoot, fromYAML string) (string, error) {

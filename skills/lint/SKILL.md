@@ -18,7 +18,8 @@ wiki の腐り方は 2 種類ある: **機械的**(リンク切れ、フロン�
 
 ## Step 1 — 決定的パス(CLI)
 
-`llmwiki.yaml` で bundle を特定する(上方向に探索; `bundle_dir`、デフォルト `wiki/`)。実行:
+`llmwiki.yaml` で bundle を特定する(上方向に探索、なければ環境変数 `LLMWIKI_WIKI_DIR`;
+`bundle_dir`、デフォルト `wiki/`)。実行:
 
 ```bash
 llmwiki lint --format json

@@ -21,7 +21,10 @@ description: >
 
 ## Step 0 — bundle を特定する
 
-作業ディレクトリから上方向に `llmwiki.yaml` を探す。得られるもの:
+作業ディレクトリから上方向に `llmwiki.yaml` を探す。見つからなければ環境変数
+`LLMWIKI_WIKI_DIR`(デフォルトの wiki プロジェクトルート)を見る — スキルは wiki と
+無関係なリポジトリで発火することも多く、そのときの行き先がこれである。
+`llmwiki.yaml` から得られるもの:
 
 - `bundle_dir` — OKF bundle のルート(デフォルト `wiki/`)
 - `raw_dir` — 取り込み待ちファイルの置き場。解決順:
@@ -31,7 +34,9 @@ description: >
 - `actor` — `generated.by` に入れる値(なければ `llmwiki/<your-model-id>` にフォールバック)
 - `categories` — カテゴリディレクトリとその意味
 
-`llmwiki.yaml` がなければ停止し、先に `llmwiki init` を実行するようユーザーに伝える。
+どちらでも見つからなければ停止し、`llmwiki init` の実行か
+`export LLMWIKI_WIKI_DIR=<wikiプロジェクトのパス>` の設定をユーザーに案内する。
+複数の wiki を持つユーザーの場合、どの wiki に取り込むか曖昧なら確認する。
 
 書き込む前に必ず bundle の `index.md` を読むこと — 重複ではなく更新をするためには、
 何が既に存在するかを知る必要がある。そのトピックのページが既にあるなら**更新する**。
