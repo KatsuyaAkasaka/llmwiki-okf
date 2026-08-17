@@ -136,6 +136,10 @@ func runUpdate(args []string) int {
 	var err error
 	if len(args) > 0 {
 		cfg, err = parseConfigAt(args[0])
+		if os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "update: %s is not a llmwiki project (no llmwiki.yaml there) — pass the directory that contains llmwiki.yaml, or run `llmwiki init %s` to create one\n", args[0], args[0])
+			return 2
+		}
 	} else {
 		cfg, err = loadConfig()
 	}
