@@ -1,10 +1,10 @@
-// Package inbox implements directory-based source intake: files dropped into
-// the configured inbox directory are tracked in a manifest by content hash, so
+// Package raw implements directory-based source intake: files dropped into
+// the configured raw directory are tracked in a manifest by content hash, so
 // repeated ingest runs process only the delta — new and changed files — never
 // the whole library again. Distillation itself is the ingest skill's job; this
 // package only answers "what is waiting?" and "what has been done?"
 // deterministically.
-package inbox
+package raw
 
 import (
 	"crypto/sha256"
@@ -19,7 +19,7 @@ import (
 )
 
 // ManifestName is the tracking file, kept at the wiki project root (next to
-// llmwiki.yaml) and outside the bundle so it is never deployed. The inbox
+// llmwiki.yaml) and outside the bundle so it is never deployed. The raw
 // directory itself lives elsewhere (default ~/wiki_raw): the manifest belongs
 // to the wiki that consumed the sources, so several wikis can ingest from the
 // same drop directory independently.
@@ -40,7 +40,7 @@ type ManifestEntry struct {
 	Pages      []string `json:"pages,omitempty"` // bundle-relative pages it touched
 }
 
-// Manifest maps inbox-relative source paths to their ingest record.
+// Manifest maps raw-relative source paths to their ingest record.
 type Manifest struct {
 	Version int                      `json:"version"`
 	Sources map[string]ManifestEntry `json:"sources"`
@@ -76,23 +76,23 @@ func (m *Manifest) Save(root string) error {
 
 // Entry is one Scan result row.
 type Entry struct {
-	Path   string `json:"path"`   // inbox-relative, slash-separated
+	Path   string `json:"path"`   // raw-relative, slash-separated
 	Status string `json:"status"` // new | changed | ingested | missing
 	SHA256 string `json:"sha256,omitempty"`
 }
 
-// Scan walks inboxDir (an absolute or resolved path) recursively and
+// Scan walks rawDir (an absolute or resolved path) recursively and
 // classifies every file against the manifest. Dotfiles (.gitkeep etc.) are
 // skipped. Manifest entries whose file has disappeared are reported as
-// missing. A non-existent inbox directory simply means nothing is waiting.
-func Scan(inboxDir string, m *Manifest) ([]Entry, error) {
+// missing. A non-existent raw directory simply means nothing is waiting.
+func Scan(rawDir string, m *Manifest) ([]Entry, error) {
 	var entries []Entry
 	seen := map[string]bool{}
 
-	err := filepath.WalkDir(inboxDir, func(p string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(rawDir, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
-			if os.IsNotExist(err) && p == inboxDir {
-				return filepath.SkipAll // no inbox directory yet — nothing waiting
+			if os.IsNotExist(err) && p == rawDir {
+				return filepath.SkipAll // no raw directory yet — nothing waiting
 			}
 			return err
 		}
@@ -105,7 +105,7 @@ func Scan(inboxDir string, m *Manifest) ([]Entry, error) {
 		if d.IsDir() {
 			return nil
 		}
-		rel, err := filepath.Rel(inboxDir, p)
+		rel, err := filepath.Rel(rawDir, p)
 		if err != nil {
 			return err
 		}
@@ -127,7 +127,7 @@ func Scan(inboxDir string, m *Manifest) ([]Entry, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("inbox scan: %w", err)
+		return nil, fmt.Errorf("raw scan: %w", err)
 	}
 
 	for rel := range m.Sources {
@@ -139,11 +139,11 @@ func Scan(inboxDir string, m *Manifest) ([]Entry, error) {
 	return entries, nil
 }
 
-// Mark records the inbox-relative file as ingested at its current content
+// Mark records the raw-relative file as ingested at its current content
 // hash. Call it only after the pages are actually written — the mark is the
 // claim that this exact content has been distilled.
-func (m *Manifest) Mark(inboxDir, file string, pages []string, now time.Time) error {
-	sum, err := hashFile(filepath.Join(inboxDir, filepath.FromSlash(file)))
+func (m *Manifest) Mark(rawDir, file string, pages []string, now time.Time) error {
+	sum, err := hashFile(filepath.Join(rawDir, filepath.FromSlash(file)))
 	if err != nil {
 		return fmt.Errorf("mark: %w", err)
 	}

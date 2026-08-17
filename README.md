@@ -35,29 +35,29 @@ llmwiki init my-wiki && cd my-wiki
 | 話しかける内容 | 何が起きるか |
 |---|---|
 | 「https://example.com/paper をwikiに取り込んで」 | `ingest` がソースを相互リンク付きページに蒸留し、来歴を記録して `index.md` + `log.md` を更新、`llmwiki lint` で自己検証する |
-| 「inboxを取り込んで」 | `ingest` が inbox(デフォルト `~/wiki_raw`)に置かれたファイルのうち**未取り込み・変更分だけ**を一括で蒸留する(manifest の content hash で差分検出) |
+| 「rawを取り込んで」 | `ingest` が raw(デフォルト `~/wiki_raw`)に置かれたファイルのうち**未取り込み・変更分だけ**を一括で蒸留する(manifest の content hash で差分検出) |
 | 「Xについて何を知ってる?」 | `query` が `index.md` → ページと辿り、**出典付きで**回答する: 根拠ページ、信頼層、鮮度 |
 | 「wikiをlintして」 | `lint` が決定的な CLI チェックを実行し、その上に意味的チェック(矛盾・重複・ギャップ)を重ねて修正を提案する |
 
 取り込みの入力は 4 経路: URL、個別ファイル、貼り付けテキスト/会話、そして
-**inbox ディレクトリ**。inbox はファイルを置いておくだけの経路で、場所は
-`llmwiki.yaml` の `inbox_dir` → 環境変数 `LLMWIKI_INBOX_DIR` → **`~/wiki_raw`**
+**raw ディレクトリ**。raw はファイルを置いておくだけの経路で、場所は
+`llmwiki.yaml` の `raw_dir` → 環境変数 `LLMWIKI_RAW_DIR` → **`~/wiki_raw`**
 の順で解決される。デフォルトが wiki プロジェクトの**外**なのは意図的 — wiki リポジトリは
 git 管理されることがあり、生ソース(PDF・画像・チャットログ等)をその中に入れることは
-推奨しない(`llmwiki init` も inbox を作らない)。
+推奨しない(`llmwiki init` も raw を作らない)。
 
-`llmwiki inbox` が各ファイルを `.llmwiki-manifest.json` の content hash と突き合わせて
+`llmwiki raw` が各ファイルを `.llmwiki-manifest.json` の content hash と突き合わせて
 `new` / `changed` / `ingested` / `missing` に分類するため、再実行してもライブラリ全体を
 処理し直すことはない — 差分だけが処理される。取り込み後もファイルは移動・削除されない
-(inbox は不変の生ソース層)。manifest は wiki 側に置かれるので、同じ inbox を複数の
+(raw は不変の生ソース層)。manifest は wiki 側に置かれるので、同じ raw を複数の
 wiki が独立に取り込める。
 
 ```bash
 mkdir -p ~/wiki_raw
 cp ~/Downloads/paper.pdf ~/wiki_raw/      # 置く
-cd my-wiki && llmwiki inbox               # 何が待っているか確認
+cd my-wiki && llmwiki raw               # 何が待っているか確認
 # → new  paper.pdf
-# あとは Claude Code で「inboxを取り込んで」
+# あとは Claude Code で「rawを取り込んで」
 ```
 
 `query` スキルは**ローカルにcloneがなくても**使える: `llmwiki.yaml` の `remote_url` か
@@ -69,8 +69,8 @@ cd my-wiki && llmwiki inbox               # 何が待っているか確認
 ```
 ~/wiki_raw/                # 取り込み待ちファイルの置き場(プロジェクト外・デプロイされない)
 my-wiki/
-├── llmwiki.yaml           # bundle_dir、inbox_dir、remote_url、actor、categories
-├── .llmwiki-manifest.json # inbox 取り込みの追跡(content hash、触れたページ)
+├── llmwiki.yaml           # bundle_dir、raw_dir、remote_url、actor、categories
+├── .llmwiki-manifest.json # raw 取り込みの追跡(content hash、触れたページ)
 └── wiki/                  # OKF bundle = アップロードする単位そのもの
     ├── index.html         # 自己完結ビューア(ハッシュルーティング SPA、CDN 依存なし)
     ├── index.md           # カタログ — 人間と LLM の両方が辿る地図
